@@ -123,6 +123,7 @@ export function useVitalWatchLive(): VitalWatch {
   useEffect(() => {
     if (!state.authed || state.screen !== "detail" || !state.selectedId) return;
     let alive = true;
+    setSelectedSeries(undefined); // 환자 전환 시 이전 추세를 비워 잘못된 그래프 방지(그 사이 genSeries 폴백)
     fetchVitalHistory(state.selectedId)
       .then((rows) => {
         if (alive) setSelectedSeries(toSeries(rows));
