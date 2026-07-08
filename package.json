@@ -1,0 +1,23 @@
+{
+  "name": "vitalwatch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VitalWatch — 병동 실시간 환자 바이탈 관제 대시보드 (Ward Central)",
+  "scripts": {
+    "dev": "next dev -p 4300",
+    "build": "next build",
+    "start": "next start -p 4300",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}
