@@ -144,6 +144,17 @@ create table if not exists p_alminf (
   "TargetWadCod" text
 );
 
+-- 위험 확인(Acknowledge) [웹 전용] — 특정 측정시점을 확인한 기록.
+-- 측정 1건(cht_num + measured_ms)당 1행이라, 새 측정이 오면 다시 미확인이 되어
+-- 재악화 시 알림이 다시 뜬다. (모바일 앱은 확인 기능이 없어 이 테이블을 쓰지 않음.)
+create table if not exists p_vtlack (
+  "cht_num"     integer not null,
+  "measured_ms" bigint  not null,   -- v_vital_history.record_time 의 epoch ms
+  "ack_uid"     text,
+  "ack_dtm"     timestamptz default now(),
+  primary key ("cht_num", "measured_ms")
+);
+
 -- 조회 성능용 인덱스
 create index if not exists ix_vtlinf_cht_dtf on p_vtlinf ("VtlChtNum", "VtlUpdDtf");
 create index if not exists ix_alminf_cht_dtf on p_alminf ("AlmChtNum", "AlmCreateDtf");
@@ -277,6 +288,7 @@ grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to anon, authenticated;
 grant usage, select on all sequences in schema public to anon, authenticated;
 
--- Realtime: 모바일(AlertService)은 p_alminf, 웹은 p_vtlinf/p_alminf INSERT 를 구독
+-- Realtime: 모바일(AlertService)은 p_alminf, 웹은 p_vtlinf/p_alminf/p_vtlack INSERT 를 구독
 alter publication supabase_realtime add table p_alminf;
 alter publication supabase_realtime add table p_vtlinf;
+alter publication supabase_realtime add table p_vtlack;

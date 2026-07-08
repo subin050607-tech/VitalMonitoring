@@ -23,6 +23,7 @@ import type {
   Toast,
   VitalKey,
   Vitals,
+  VitalSeries,
 } from "@/lib/types";
 import { DEFAULT_RANGES, patientStatus } from "@/lib/vitals";
 
@@ -98,6 +99,8 @@ export interface VitalWatch {
   state: State;
   /** 라이브(Supabase) 모드에서만 채워지는 알림 이력. 시뮬 모드는 undefined. */
   liveAlerts?: AlertRecord[];
+  /** 라이브 모드에서 선택 환자의 실측 시계열(상세 그래프용). 시뮬은 undefined → genSeries. */
+  selectedSeries?: VitalSeries;
   login: () => void;
   logout: () => void;
   ackPatient: (id: string) => void;

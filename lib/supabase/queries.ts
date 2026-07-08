@@ -3,15 +3,27 @@
 import type { AlertRecord } from "../alerts";
 import type { Patient, RangesConfig } from "../types";
 import { supabase } from "./client";
-import { alarmToRecord, toPatient } from "./map";
+import { alarmToRecord, recordEpoch, toPatient } from "./map";
 import type { AlarmListRow, PatientSearchRow, VitalHistoryRow } from "./rows";
 
+interface AckRow {
+  cht_num: number;
+  measured_ms: number;
+}
+
+/** 확인된 측정들의 키 집합 `${cht_num}:${measured_ms}`. */
+async function fetchAckedKeys(chartNums: number[]): Promise<Set<string>> {
+  if (!supabase || chartNums.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("p_vtlack")
+    .select("cht_num, measured_ms")
+    .in("cht_num", chartNums);
+  if (error) throw error;
+  return new Set(((data ?? []) as AckRow[]).map((a) => `${a.cht_num}:${a.measured_ms}`));
+}
+
 /** 병동의 환자 + 각자 최근 바이탈 → 웹 Patient[]. 바이탈 있는 환자만(모니터링 중). */
-export async function fetchWardPatients(
-  ward: string,
-  ranges: RangesConfig,
-  ackedIds: Set<string>,
-): Promise<Patient[]> {
+export async function fetchWardPatients(ward: string, ranges: RangesConfig): Promise<Patient[]> {
   if (!supabase) return [];
 
   const { data: pRows, error: pErr } = await supabase
@@ -26,11 +38,10 @@ export async function fetchWardPatients(
     .map((p) => parseInt(String(p.pat_cht_num), 10))
     .filter((n) => Number.isFinite(n));
 
-  const { data: vRows, error: vErr } = await supabase
-    .from("v_vital_history")
-    .select("*")
-    .in("cht_num", chartNums)
-    .order("record_time", { ascending: false });
+  const [{ data: vRows, error: vErr }, ackedKeys] = await Promise.all([
+    supabase.from("v_vital_history").select("*").in("cht_num", chartNums).order("record_time", { ascending: false }),
+    fetchAckedKeys(chartNums),
+  ]);
   if (vErr) throw vErr;
 
   // 환자별 최근 바이탈 1건만 남긴다 (record_time 내림차순 → 첫 등장이 최신).
@@ -44,9 +55,23 @@ export async function fetchWardPatients(
     const chart = parseInt(String(p.pat_cht_num), 10);
     const latest = latestByChart.get(chart);
     if (!latest) continue; // 오늘/최근 바이탈 없는 환자는 대시보드에서 제외
-    result.push(toPatient(p, latest, ranges, ackedIds.has(String(p.pat_cht_num))));
+    // 확인 여부 = 이 환자의 "이번 측정"이 확인됐는가 (측정이 바뀌면 다시 미확인).
+    const acked = ackedKeys.has(`${chart}:${recordEpoch(latest.record_time)}`);
+    result.push(toPatient(p, latest, ranges, acked));
   }
   return result;
+}
+
+/** 특정 측정시점을 확인 처리 (측정당 1건, 중복은 무시). */
+export async function ackMeasurement(chartNo: string, measuredMs: number, uid: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("p_vtlack")
+    .upsert(
+      { cht_num: parseInt(chartNo, 10), measured_ms: measuredMs, ack_uid: uid },
+      { onConflict: "cht_num,measured_ms", ignoreDuplicates: true },
+    );
+  if (error) throw error;
 }
 
 /** 병동의 오늘 알림 이력. */

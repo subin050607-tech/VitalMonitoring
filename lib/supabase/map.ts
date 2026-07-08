@@ -1,7 +1,7 @@
 /** Supabase 뷰 행 → 웹 도메인 모델 매핑. */
 
 import type { AlertRecord } from "../alerts";
-import type { Patient, RangesConfig, Vitals } from "../types";
+import type { Patient, RangesConfig, VitalSeries, Vitals } from "../types";
 import { patientStatus } from "../vitals";
 import type { AlarmListRow, PatientSearchRow, VitalHistoryRow } from "./rows";
 
@@ -77,6 +77,27 @@ export function toPatient(
     ackBy: acknowledged ? "이정민" : "",
     ackAt: "",
   };
+}
+
+/** 바이탈 이력 행들(시간 오름차순) → 상세 그래프용 실측 시계열. */
+export function toSeries(rows: VitalHistoryRow[]): VitalSeries {
+  const s: VitalSeries = { times: [], temp: [], sbp: [], dbp: [], hr: [], rr: [], spo2: [] };
+  for (const r of rows) {
+    const [sbp, dbp] = parseBp(r.blood_pressure);
+    s.times.push(epoch(r.record_time));
+    s.temp.push(num(r.temperature));
+    s.sbp.push(sbp);
+    s.dbp.push(dbp);
+    s.hr.push(num(r.pulse));
+    s.rr.push(num(r.respiration));
+    s.spo2.push(num(r.spo2));
+  }
+  return s;
+}
+
+/** epoch ms 를 외부에서도 쓰도록 노출 (ack 키 등). */
+export function recordEpoch(ts: string | null): number {
+  return epoch(ts);
 }
 
 /** 알림 목록 행 → 알림 이력 레코드. (서버에 확인 상태가 없어 미확인으로 둔다.) */

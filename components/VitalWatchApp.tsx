@@ -63,6 +63,7 @@ export function VitalWatchApp() {
             setPeriod={vw.setPeriod}
             goBack={() => vw.goScreen(state.detailReturn)}
             backLabel={state.detailReturn === "patients" ? "목록으로" : "관제로"}
+            series={vw.selectedSeries}
           />
         )}
 

@@ -62,3 +62,14 @@ export interface VitalRange {
 /** 위험 기준치 전체 (6개 판정 축). sbp·dbp 는 혈압을 나눠 판정. */
 export type RangesConfig = Record<"temp" | "sbp" | "dbp" | "hr" | "rr" | "spo2", VitalRange>;
 export type RangeKey = keyof RangesConfig;
+
+/** 상세 그래프용 실측 시계열 (시간 오름차순). times 와 각 배열의 인덱스가 대응. */
+export interface VitalSeries {
+  times: number[]; // 측정 시각 epoch ms
+  temp: number[];
+  sbp: number[];
+  dbp: number[];
+  hr: number[];
+  rr: number[];
+  spo2: number[];
+}

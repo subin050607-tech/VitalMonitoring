@@ -5,21 +5,29 @@
  * 인터페이스를 노출해 VitalWatchApp 이 그대로 소비한다.
  *
  *  - 초기/병동변경/기준치변경 시 v_patient_search + v_vital_history 조회
- *  - p_vtlinf / p_alminf INSERT 를 Realtime 구독 → 디바운스 후 재조회(새로고침 없이 갱신)
- *  - 확인(Acknowledge)은 서버에 확인 컬럼이 없어 클라이언트(localStorage)로 유지
- *    (추후 스키마에 ack 테이블/컬럼을 추가하면 서버 반영으로 교체)
+ *  - p_vtlinf / p_alminf / p_vtlack INSERT 를 Realtime 구독 → 디바운스 재조회
+ *  - 확인(Acknowledge)은 p_vtlack(측정 1건당 1행)에 서버 저장 → 여러 관제 PC 가
+ *    공유하고, 새 측정이 오면 다시 미확인이 되어 재악화 시 재알림된다.
+ *  - 상세 진입 시 선택 환자의 실측 이력(v_vital_history)을 시계열로 조회.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AlertRecord } from "@/lib/alerts";
 import { fmtClock } from "@/lib/format";
-import { fetchAlerts, fetchWardPatients, subscribeToChanges } from "@/lib/supabase/queries";
-import type { Patient, Period, RangesConfig, ScreenName, Toast, VitalKey } from "@/lib/types";
+import {
+  ackMeasurement,
+  fetchAlerts,
+  fetchVitalHistory,
+  fetchWardPatients,
+  subscribeToChanges,
+} from "@/lib/supabase/queries";
+import { toSeries } from "@/lib/supabase/map";
+import type { Patient, Period, RangesConfig, ScreenName, Toast, VitalKey, VitalSeries } from "@/lib/types";
 import { DEFAULT_RANGES, vStatus, worstBp } from "@/lib/vitals";
 import type { State, VitalWatch } from "./useVitalWatch";
 
-const ACK_KEY = "vitalwatch.ackedIds";
+const CURRENT_UID = "nurse1"; // 로그인 사용자 (데모)
 
 function initialState(): State {
   return {
@@ -72,29 +80,19 @@ function buildToasts(patients: Patient[], ranges: RangesConfig, dismissed: Set<s
 export function useVitalWatchLive(): VitalWatch {
   const [state, setState] = useState<State>(initialState);
   const [liveAlerts, setLiveAlerts] = useState<AlertRecord[]>([]);
+  const [selectedSeries, setSelectedSeries] = useState<VitalSeries | undefined>(undefined);
 
-  const ackedRef = useRef<Set<string>>(new Set());
   const dismissedRef = useRef<Set<string>>(new Set());
   const stateRef = useRef(state);
   stateRef.current = state;
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // 확인 이력을 localStorage 에서 복원
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(ACK_KEY);
-      if (raw) ackedRef.current = new Set(JSON.parse(raw) as string[]);
-    } catch {
-      /* noop */
-    }
-  }, []);
 
   const refresh = useCallback(async () => {
     const s = stateRef.current;
     if (!s.authed) return;
     try {
       const [patients, alerts] = await Promise.all([
-        fetchWardPatients(s.ward, s.ranges, ackedRef.current),
+        fetchWardPatients(s.ward, s.ranges),
         fetchAlerts(s.ward),
       ]);
       setLiveAlerts(alerts);
@@ -121,6 +119,20 @@ export function useVitalWatchLive(): VitalWatch {
     if (state.authed) refresh();
   }, [state.authed, state.ward, state.ranges, refresh]);
 
+  // 상세 진입 시 선택 환자의 실측 이력 조회
+  useEffect(() => {
+    if (!state.authed || state.screen !== "detail" || !state.selectedId) return;
+    let alive = true;
+    fetchVitalHistory(state.selectedId)
+      .then((rows) => {
+        if (alive) setSelectedSeries(toSeries(rows));
+      })
+      .catch((e) => console.error("[VitalWatch live] 이력 조회 실패:", e));
+    return () => {
+      alive = false;
+    };
+  }, [state.authed, state.screen, state.selectedId]);
+
   // Realtime 구독 + LIVE 시계
   useEffect(() => {
     if (!state.authed) return;
@@ -138,12 +150,12 @@ export function useVitalWatchLive(): VitalWatch {
   const logout = useCallback(() => setState((s) => ({ ...s, authed: false, screen: "dashboard" })), []);
 
   const ackPatient = useCallback((id: string) => {
-    ackedRef.current.add(id);
-    try {
-      localStorage.setItem(ACK_KEY, JSON.stringify([...ackedRef.current]));
-    } catch {
-      /* noop */
-    }
+    const patient = stateRef.current.patients.find((p) => p.id === id);
+    if (!patient) return;
+    // 서버에 확인 기록 (측정시점 기준). 실패해도 UI 는 낙관적으로 처리 후 재조회로 정정.
+    ackMeasurement(id, patient.measured, CURRENT_UID).catch((e) =>
+      console.error("[VitalWatch live] 확인 저장 실패:", e),
+    );
     setState((s) => {
       const patients = s.patients.map((p) =>
         p.id === id ? { ...p, acknowledged: true, ackBy: "이정민", ackAt: fmtClock(new Date()) } : p,
@@ -174,6 +186,7 @@ export function useVitalWatchLive(): VitalWatch {
   return {
     state,
     liveAlerts,
+    selectedSeries,
     login,
     logout,
     ackPatient,

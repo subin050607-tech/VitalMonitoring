@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 
 import { genSeries, periodLabel } from "@/lib/series";
 import { C, FONT, VITAL_COLORS } from "@/lib/theme";
-import type { Patient, Period, RangesConfig, Status, VitalKey } from "@/lib/types";
+import type { Patient, Period, RangesConfig, Status, VitalKey, VitalSeries } from "@/lib/types";
 import { vStatus } from "@/lib/vitals";
 import { ChevronLeft } from "../icons";
 import { PressButton } from "../PressButton";
@@ -37,36 +37,65 @@ const LAYER_DEFS: { key: VitalKey; label: string; color: string }[] = [
   { key: "spo2", label: "SpO₂", color: VITAL_COLORS.spo2 },
 ];
 
-function buildSpecs(ranges: RangesConfig, p: Patient, layers: Record<VitalKey, boolean>, period: Period): ChartSpec[] {
+const PERIOD_MS: Record<Period, number> = { "24h": 86_400_000, "7d": 604_800_000, "30d": 2_592_000_000 };
+
+/**
+ * 라인 데이터 선택: 실측 시계열(series)이 있고 기간 내 점이 2개 이상이면 그걸,
+ * 아니면 시뮬(genSeries)로 폴백한다.
+ */
+function lineData(
+  series: VitalSeries | undefined,
+  key: keyof Omit<VitalSeries, "times">,
+  period: Period,
+  fallback: () => number[],
+): number[] {
+  if (!series) return fallback();
+  const cutoff = Date.now() - PERIOD_MS[period];
+  const picked: number[] = [];
+  for (let i = 0; i < series.times.length; i++) {
+    if (series.times[i] >= cutoff) picked.push(series[key][i]);
+  }
+  return picked.length >= 2 ? picked : fallback();
+}
+
+function buildSpecs(
+  ranges: RangesConfig,
+  p: Patient,
+  layers: Record<VitalKey, boolean>,
+  period: Period,
+  series?: VitalSeries,
+): ChartSpec[] {
   const v = p.v;
+  const gen = (key: string, base: number, cur: number, danger: boolean) =>
+    genSeries(p.id, key, base, cur, danger, period);
   const specs: (ChartSpec & { show: boolean })[] = [
     {
       key: "temp", show: layers.temp, title: "체온", eng: "Body Temp", unit: "°C", band: ranges.temp.normal,
       cur: v.temp.toFixed(1), st: vStatus(ranges, "temp", v.temp),
-      lines: [{ color: VITAL_COLORS.temp, data: genSeries(p.id, "temp", 36.7, v.temp, vStatus(ranges, "temp", v.temp) === "danger", period) }],
+      lines: [{ color: VITAL_COLORS.temp, data: lineData(series, "temp", period, () => gen("temp", 36.7, v.temp, vStatus(ranges, "temp", v.temp) === "danger")) }],
     },
     {
       key: "bp", show: layers.bp, title: "혈압", eng: "Blood Pressure", unit: "mmHg", band: [ranges.dbp.normal[0], ranges.sbp.normal[1]],
       cur: `${v.sbp}/${v.dbp}`, st: vStatus(ranges, "sbp", v.sbp),
       lines: [
-        { color: VITAL_COLORS.bp, data: genSeries(p.id, "sbp", 118, v.sbp, vStatus(ranges, "sbp", v.sbp) === "danger", period) },
-        { color: "#b39ae0", data: genSeries(p.id, "dbp", 76, v.dbp, false, period) },
+        { color: VITAL_COLORS.bp, data: lineData(series, "sbp", period, () => gen("sbp", 118, v.sbp, vStatus(ranges, "sbp", v.sbp) === "danger")) },
+        { color: "#b39ae0", data: lineData(series, "dbp", period, () => gen("dbp", 76, v.dbp, false)) },
       ],
     },
     {
       key: "hr", show: layers.hr, title: "맥박", eng: "Heart Rate", unit: "bpm", band: ranges.hr.normal,
       cur: String(v.hr), st: vStatus(ranges, "hr", v.hr),
-      lines: [{ color: VITAL_COLORS.hr, data: genSeries(p.id, "hr", 78, v.hr, vStatus(ranges, "hr", v.hr) === "danger", period) }],
+      lines: [{ color: VITAL_COLORS.hr, data: lineData(series, "hr", period, () => gen("hr", 78, v.hr, vStatus(ranges, "hr", v.hr) === "danger")) }],
     },
     {
       key: "rr", show: layers.rr, title: "호흡수", eng: "Resp. Rate", unit: "/min", band: ranges.rr.normal,
       cur: String(v.rr), st: vStatus(ranges, "rr", v.rr),
-      lines: [{ color: VITAL_COLORS.rr, data: genSeries(p.id, "rr", 16, v.rr, vStatus(ranges, "rr", v.rr) === "danger", period) }],
+      lines: [{ color: VITAL_COLORS.rr, data: lineData(series, "rr", period, () => gen("rr", 16, v.rr, vStatus(ranges, "rr", v.rr) === "danger")) }],
     },
     {
       key: "spo2", show: layers.spo2, title: "산소포화도", eng: "SpO₂", unit: "%", band: ranges.spo2.normal,
       cur: String(v.spo2), st: vStatus(ranges, "spo2", v.spo2),
-      lines: [{ color: VITAL_COLORS.spo2, data: genSeries(p.id, "spo2", 98, v.spo2, vStatus(ranges, "spo2", v.spo2) === "danger", period) }],
+      lines: [{ color: VITAL_COLORS.spo2, data: lineData(series, "spo2", period, () => gen("spo2", 98, v.spo2, vStatus(ranges, "spo2", v.spo2) === "danger")) }],
     },
   ];
   return specs.filter((s) => s.show);
@@ -80,6 +109,7 @@ export function PatientDetail({
   setPeriod,
   goBack,
   backLabel,
+  series,
 }: {
   patient: Patient;
   layers: Record<VitalKey, boolean>;
@@ -88,10 +118,11 @@ export function PatientDetail({
   setPeriod: (p: Period) => void;
   goBack: () => void;
   backLabel: string;
+  series?: VitalSeries; // 라이브 모드의 실측 시계열 (없으면 시뮬)
 }) {
   const ranges = useRanges();
   const st = patient.status;
-  const specs = buildSpecs(ranges, patient, layers, period);
+  const specs = buildSpecs(ranges, patient, layers, period, series);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.pageBg }}>
