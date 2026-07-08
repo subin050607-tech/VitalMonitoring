@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { genPatients, seedToasts } from "@/lib/patients";
 import { fmtClock } from "@/lib/format";
+import type { AlertRecord } from "@/lib/alerts";
 import type {
   Layers,
   Patient,
@@ -25,7 +26,7 @@ import type {
 } from "@/lib/types";
 import { DEFAULT_RANGES, patientStatus } from "@/lib/vitals";
 
-interface State {
+export interface State {
   authed: boolean;
   patients: Patient[];
   ward: string;
@@ -95,6 +96,8 @@ function jitterPatients(ranges: RangesConfig, patients: Patient[], now: number):
 
 export interface VitalWatch {
   state: State;
+  /** 라이브(Supabase) 모드에서만 채워지는 알림 이력. 시뮬 모드는 undefined. */
+  liveAlerts?: AlertRecord[];
   login: () => void;
   logout: () => void;
   ackPatient: (id: string) => void;

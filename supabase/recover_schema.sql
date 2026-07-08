@@ -277,5 +277,6 @@ grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to anon, authenticated;
 grant usage, select on all sequences in schema public to anon, authenticated;
 
--- Realtime: p_alminf INSERT 구독(AlertService)이 동작하도록 publication 에 추가
+-- Realtime: 모바일(AlertService)은 p_alminf, 웹은 p_vtlinf/p_alminf INSERT 를 구독
 alter publication supabase_realtime add table p_alminf;
+alter publication supabase_realtime add table p_vtlinf;
