@@ -117,7 +117,7 @@ export const PatientCard = memo(function PatientCard({
               <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: ".03em", color: C.muted3 }}>{cell.eng}</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 2, margin: "1px 0" }}>
                 <span style={{ fontFamily: FONT.mono, fontSize: 18, fontWeight: strong ? 600 : 500, color: statusColor(cell.st) }}>{cell.val}</span>
-                <span style={{ fontFamily: FONT.mono, fontSize: 9.5, color: "#98a6af" }}>{cell.unit}</span>
+                <span style={{ fontFamily: FONT.mono, fontSize: 9.5, color: C.faint }}>{cell.unit}</span>
               </div>
               <div style={{ fontSize: 9.5, color: C.muted }}>{cell.kor}</div>
             </div>

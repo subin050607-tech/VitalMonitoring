@@ -21,7 +21,7 @@ function priority(p: Patient): number {
 /** 위험/주의 요약 pill — 개수가 0이면 회색으로 죽인다. */
 function summaryPill(active: boolean, activeStyle: CSSProperties): CSSProperties {
   const base: CSSProperties = { display: "flex", alignItems: "center", gap: 7, padding: "5px 13px", borderRadius: 8 };
-  return active ? { ...base, ...activeStyle } : { ...base, background: C.normalBadgeBg, color: "#98a6af" };
+  return active ? { ...base, ...activeStyle } : { ...base, background: C.normalBadgeBg, color: C.faint };
 }
 
 const countNum: CSSProperties = { fontFamily: FONT.mono, fontWeight: 600, fontSize: 17 };
