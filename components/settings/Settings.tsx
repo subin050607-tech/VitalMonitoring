@@ -42,6 +42,7 @@ export function Settings({ ranges, setRanges }: { ranges: RangesConfig; setRange
   const [draft, setDraft] = useState<RangesConfig>(ranges);
   const [saved, setSaved] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [volume, setVolume] = useState(70);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(ranges);
 
@@ -172,14 +173,15 @@ export function Settings({ ranges, setRanges }: { ranges: RangesConfig; setRange
               <div style={{ padding: "12px 0 2px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.muted, marginBottom: 8 }}>
                   <span>알림음 볼륨</span>
-                  <span style={{ fontFamily: FONT.mono, color: C.ink700, fontWeight: 600 }}>{soundOn ? "70%" : "—"}</span>
+                  <span style={{ fontFamily: FONT.mono, color: C.ink700, fontWeight: 600 }}>{soundOn ? `${volume}%` : "—"}</span>
                 </div>
                 <input
                   className="vw-input"
                   type="range"
                   min={0}
                   max={100}
-                  defaultValue={70}
+                  value={volume}
+                  onChange={(e) => setVolume(Number(e.target.value))}
                   disabled={!soundOn}
                   aria-label="알림음 볼륨"
                   style={{ width: "100%", accentColor: C.teal, opacity: soundOn ? 1 : 0.4 }}
