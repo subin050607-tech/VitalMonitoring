@@ -2,7 +2,7 @@
 
 병동 간호사가 모바일 앱으로 측정·저장한 환자 바이탈을 **웹 관제 화면에서 실시간으로 통합 모니터링**하고, 위험 수치를 즉시 식별·확인(Acknowledge)하는 웹 대시보드입니다. (SW개발 Project 실무 과제 — 환자 바이탈 모니터링 시스템)
 
-> 현재는 백엔드 없이 **클라이언트 라이브 시뮬레이션**으로 동작합니다. 실시간 소스(WebSocket/SSE/실시간 DB)가 준비되면 `hooks/useVitalWatch.ts` 만 교체하면 됩니다.
+> **Supabase 라이브 전용**입니다. `.env.local` 에 프로젝트 URL·anon 키를 넣으면 실제 DB(뷰 + Realtime)를 읽습니다. 모바일 앱이 바이탈을 입력하면 새로고침 없이 대시보드가 갱신됩니다.
 
 ## 화면 (6)
 
@@ -24,7 +24,7 @@
 
 - **Next.js 15** (App Router) · **React 19** · **TypeScript**
 - **IBM Plex Sans / Mono** (`next/font`)
-- 상태·시뮬레이션: 커스텀 훅 `useVitalWatch`
+- 상태·라이브 연동: 커스텀 훅 `useVitalWatchLive` (Supabase 조회 + Realtime 구독)
 
 ## 개발
 
@@ -38,6 +38,6 @@ pnpm dev        # http://localhost:4300
 ```
 app/           # 레이아웃 · 폰트 · 진입 페이지(마운트 게이트)
 components/     # 화면별 컴포넌트 (dashboard/ detail/ stats/ patients/ alerts/ settings/)
-hooks/         # useVitalWatch — 상태 + 라이브 시뮬레이션
+hooks/         # useVitalWatchLive — 상태 + Supabase 조회/Realtime
 lib/           # 도메인 로직 (vitals 기준치 · patients · series · alerts · theme)
 ```

@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * useVitalWatch 의 라이브(Supabase) 버전. 시뮬레이션 훅과 동일한 VitalWatch
- * 인터페이스를 노출해 VitalWatchApp 이 그대로 소비한다.
+ * VitalWatch 관제 상태 훅 (라이브 · Supabase 전용).
  *
  *  - 초기/병동변경/기준치변경 시 v_patient_search + v_vital_history 조회
  *  - p_vtlinf / p_alminf / p_vtlack INSERT 를 Realtime 구독 → 디바운스 재조회
+ *    (모바일 앱이 바이탈을 입력하면 새로고침 없이 대시보드가 갱신됨)
  *  - 확인(Acknowledge)은 p_vtlack(측정 1건당 1행)에 서버 저장 → 여러 관제 PC 가
  *    공유하고, 새 측정이 오면 다시 미확인이 되어 재악화 시 재알림된다.
  *  - 상세 진입 시 선택 환자의 실측 이력(v_vital_history)을 시계열로 조회.
@@ -23,9 +23,54 @@ import {
   subscribeToChanges,
 } from "@/lib/supabase/queries";
 import { toSeries } from "@/lib/supabase/map";
-import type { LoginUser, Patient, Period, RangesConfig, ScreenName, Toast, VitalKey, VitalSeries } from "@/lib/types";
+import type {
+  Layers,
+  LoginUser,
+  Patient,
+  Period,
+  RangesConfig,
+  ScreenName,
+  Toast,
+  VitalKey,
+  VitalSeries,
+} from "@/lib/types";
 import { DEFAULT_RANGES, vStatus, worstBp } from "@/lib/vitals";
-import { MOCK_USER, type State, type VitalWatch } from "./useVitalWatch";
+
+/** 로그인 사용자가 없을 때의 안전 기본값 (정상 흐름에선 로그인 시 실제 사용자로 채워짐). */
+const DEFAULT_USER: LoginUser = { uid: "nurse1", name: "이정민", depCod: "D1" };
+
+export interface State {
+  authed: boolean;
+  user: LoginUser | null;
+  patients: Patient[];
+  ward: string;
+  screen: ScreenName;
+  selectedId: string;
+  detailReturn: ScreenName;
+  period: Period;
+  layers: Layers;
+  ranges: RangesConfig;
+  toasts: Toast[];
+  now: Date;
+  alertToday: number;
+  dangerPatientsToday: number;
+}
+
+export interface VitalWatch {
+  state: State;
+  liveAlerts: AlertRecord[];
+  selectedSeries?: VitalSeries;
+  login: (user?: LoginUser) => void;
+  logout: () => void;
+  ackPatient: (id: string) => void;
+  dismissToast: (id: string) => void;
+  setWard: (ward: string) => void;
+  goScreen: (screen: ScreenName) => void;
+  openDetail: (id: string, from?: ScreenName) => void;
+  setPeriod: (period: Period) => void;
+  toggleLayer: (key: VitalKey) => void;
+  setRanges: (ranges: RangesConfig) => void;
+}
 
 function initialState(): State {
   return {
@@ -147,7 +192,7 @@ export function useVitalWatchLive(): VitalWatch {
 
   // ── 액션 ──
   const login = useCallback(
-    (user?: LoginUser) => setState((s) => ({ ...s, authed: true, user: user ?? MOCK_USER })),
+    (user?: LoginUser) => setState((s) => ({ ...s, authed: true, user: user ?? DEFAULT_USER })),
     [],
   );
   const logout = useCallback(
@@ -159,7 +204,7 @@ export function useVitalWatchLive(): VitalWatch {
     const s0 = stateRef.current;
     const patient = s0.patients.find((p) => p.id === id);
     if (!patient) return;
-    const user = s0.user ?? MOCK_USER;
+    const user = s0.user ?? DEFAULT_USER;
     // 서버에 확인 기록 (측정시점 + 로그인 사용자). 실패해도 UI 는 낙관적으로 처리 후 재조회로 정정.
     ackMeasurement(id, patient.measured, user.uid).catch((e) =>
       console.error("[VitalWatch live] 확인 저장 실패:", e),

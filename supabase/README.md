@@ -55,4 +55,4 @@ psql "$SUPABASE_DB_URL" -f supabase/recover_seed.sql
 - `v_vital_history` → 환자 상세 추세
 - `v_alarm_list` → 알림 이력
 
-현재 웹은 `hooks/useVitalWatch.ts` 의 내장 시뮬레이션으로 동작한다. 실제 연결 시 이 훅을 Supabase 조회 + Realtime 구독으로 교체하면 된다.
+웹은 `hooks/useVitalWatchLive.ts` 에서 이 뷰들을 조회하고 `p_vtlinf`/`p_alminf`/`p_vtlack` INSERT 를 Realtime 구독한다(라이브 전용). `.env.local` 에 URL·anon 키만 넣으면 붙는다.

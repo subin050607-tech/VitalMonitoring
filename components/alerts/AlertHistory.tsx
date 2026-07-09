@@ -3,10 +3,9 @@
 import type { CSSProperties } from "react";
 import { useState } from "react";
 
-import { genAlerts, type AlertRecord } from "@/lib/alerts";
+import type { AlertRecord } from "@/lib/alerts";
 import { fmtClock } from "@/lib/format";
 import { C, FONT } from "@/lib/theme";
-import type { Patient } from "@/lib/types";
 import { PressButton } from "../PressButton";
 import { trackStyle, wardTab } from "../segStyles";
 
@@ -63,26 +62,17 @@ function Kpi({ label, value, unit, sub, color }: { label: string; value: string;
 }
 
 export function AlertHistory({
-  patients,
   ward,
   setWard,
-  alertToday,
   records,
 }: {
-  patients: Patient[];
   ward: string;
   setWard: (w: string) => void;
-  alertToday: number;
-  records?: AlertRecord[]; // 라이브(Supabase) 모드면 실제 알림, 없으면 시뮬 생성
+  records: AlertRecord[]; // Supabase v_alarm_list 매핑 결과
 }) {
-  // 시뮬 모드: 화면 진입 시점에 한 번 고정 (매 틱 재생성 방지). 라이브면 미사용.
-  const [genned] = useState<AlertRecord[]>(() =>
-    records ? [] : genAlerts(patients, Date.now(), alertToday),
-  );
   const [filter, setFilter] = useState<AckFilter>("all");
 
-  const allAlerts = records ?? genned;
-  const wardAlerts = allAlerts.filter((a) => a.ward === ward);
+  const wardAlerts = records.filter((a) => a.ward === ward);
   const rows = wardAlerts.filter((a) => filter === "all" || (filter === "acked" ? a.acked : !a.acked));
 
   const unackedCount = wardAlerts.filter((a) => !a.acked).length;

@@ -43,9 +43,8 @@ export function LoginScreen({ onLogin }: { onLogin: (user?: LoginUser) => void }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    // 시뮬 모드는 목 로그인(아무 값이나 통과). 라이브 모드는 m_uidmst 로 검증.
     if (!SUPABASE_ENABLED) {
-      onLogin();
+      setError("서버(Supabase)가 구성되지 않았습니다. 관리자에게 문의하세요.");
       return;
     }
     setSubmitting(true);
@@ -167,9 +166,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user?: LoginUser) => void }
         </form>
 
         <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "#5c8a8a" }}>
-          {SUPABASE_ENABLED
-            ? "데모 계정: nurse1 / 1234  (또는 admin / 1234)"
-            : "데모 — 아무 값이나 입력 후 로그인하면 관제 화면으로 이동합니다."}
+          데모 계정: nurse1 / 1234  (또는 admin / 1234)
         </div>
       </div>
     </div>

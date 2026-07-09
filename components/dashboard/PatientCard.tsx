@@ -57,7 +57,7 @@ function wrapStyle(st: Status, needsAck: boolean): CSSProperties {
 /**
  * memo — 대시보드는 LIVE 시계 때문에 매초 부모가 리렌더되지만, 카드는 자기
  * 환자 객체(3틱마다 갱신)나 콜백이 바뀔 때만 다시 그리면 된다. 콜백은
- * useVitalWatch 에서 useCallback 으로 안정화돼 있어 shallow 비교가 잘 맞는다.
+ * 훅에서 useCallback 으로 안정화돼 있어 shallow 비교가 잘 맞는다.
  */
 export const PatientCard = memo(function PatientCard({
   patient,

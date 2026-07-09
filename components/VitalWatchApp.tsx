@@ -1,13 +1,8 @@
 "use client";
 
-import { useVitalWatch } from "@/hooks/useVitalWatch";
 import { useVitalWatchLive } from "@/hooks/useVitalWatchLive";
 import { fmtClock } from "@/lib/format";
-import { SUPABASE_ENABLED } from "@/lib/supabase/config";
 import { C } from "@/lib/theme";
-
-// 환경변수로 결정되는 모듈 상수 → 훅 선택이 렌더 간 안정적(훅 순서 규칙 준수).
-const useVitalWatchData = SUPABASE_ENABLED ? useVitalWatchLive : useVitalWatch;
 import { AlertHistory } from "./alerts/AlertHistory";
 import { Dashboard } from "./dashboard/Dashboard";
 import { PatientDetail } from "./detail/PatientDetail";
@@ -20,7 +15,7 @@ import { ToastStack } from "./ToastStack";
 import { TopNav } from "./TopNav";
 
 export function VitalWatchApp() {
-  const vw = useVitalWatchData();
+  const vw = useVitalWatchLive();
   const { state } = vw;
 
   if (!state.authed) {
@@ -78,13 +73,7 @@ export function VitalWatchApp() {
         )}
 
         {state.screen === "alerts" && (
-          <AlertHistory
-            patients={state.patients}
-            ward={state.ward}
-            setWard={vw.setWard}
-            alertToday={state.alertToday}
-            records={vw.liveAlerts}
-          />
+          <AlertHistory ward={state.ward} setWard={vw.setWard} records={vw.liveAlerts} />
         )}
 
         {state.screen === "settings" && <Settings ranges={state.ranges} setRanges={vw.setRanges} />}
