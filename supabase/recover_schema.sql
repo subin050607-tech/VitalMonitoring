@@ -289,6 +289,17 @@ grant select, insert, update, delete on all tables in schema public to anon, aut
 grant usage, select on all sequences in schema public to anon, authenticated;
 
 -- Realtime: 모바일(AlertService)은 p_alminf, 웹은 p_vtlinf/p_alminf/p_vtlack INSERT 를 구독
-alter publication supabase_realtime add table p_alminf;
-alter publication supabase_realtime add table p_vtlinf;
-alter publication supabase_realtime add table p_vtlack;
+-- (이미 publication 에 있어도 에러 안 나도록 가드 — 재실행 안전)
+do $$
+declare t text;
+begin
+  foreach t in array array['p_alminf','p_vtlinf','p_vtlack']
+  loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table %I', t);
+    end if;
+  end loop;
+end $$;
