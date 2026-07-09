@@ -3,7 +3,10 @@
 import type { CSSProperties } from "react";
 import { useState } from "react";
 
+import { SUPABASE_ENABLED } from "@/lib/supabase/config";
+import { validateLogin } from "@/lib/supabase/queries";
 import { C, FONT } from "@/lib/theme";
+import type { LoginUser } from "@/lib/types";
 import { WaveLogo } from "./icons";
 
 const inputStyle: CSSProperties = {
@@ -30,10 +33,35 @@ const labelStyle: CSSProperties = {
  * 로그인 게이트 — 인증된 의료진만 관제 화면에 진입(요구사항 공통 인증·보안 3.9).
  * 데모라 실제 인증 없이 입력 후 로그인하면 통과한다.
  */
-export function LoginScreen({ onLogin }: { onLogin: () => void }) {
+export function LoginScreen({ onLogin }: { onLogin: (user?: LoginUser) => void }) {
   const [staffId, setStaffId] = useState("");
   const [password, setPassword] = useState("");
   const [ward, setWard] = useState("5·6");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    // 시뮬 모드는 목 로그인(아무 값이나 통과). 라이브 모드는 m_uidmst 로 검증.
+    if (!SUPABASE_ENABLED) {
+      onLogin();
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const user = await validateLogin(staffId.trim(), password);
+      if (user) {
+        onLogin(user);
+      } else {
+        setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      }
+    } catch {
+      setError("서버 연결에 실패했습니다. 잠시 후 다시 시도하세요.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -60,10 +88,7 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
         {/* 카드 */}
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            onLogin();
-          }}
+          onSubmit={handleSubmit}
           style={{ background: "#fff", borderRadius: 14, padding: "26px 26px 22px", boxShadow: "0 12px 34px rgba(5,20,26,.4)" }}
         >
           <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 3 }}>의료진 로그인</div>
@@ -105,24 +130,31 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
             </select>
           </div>
 
+          {error && (
+            <div role="alert" style={{ marginBottom: 12, padding: "8px 11px", borderRadius: 8, background: C.dangerBg, border: `1px solid ${C.dangerBorder}`, color: C.dangerText, fontSize: 12, fontWeight: 500 }}>
+              {error}
+            </div>
+          )}
+
           <button
             type="submit"
             className="vw-btn"
+            disabled={submitting}
             style={{
               width: "100%",
               padding: "11px 0",
               border: "none",
               borderRadius: 9,
-              background: C.teal,
+              background: submitting ? "#5fbdbd" : C.teal,
               color: "#fff",
               fontFamily: FONT.sans,
               fontSize: 14,
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: submitting ? "default" : "pointer",
               boxShadow: "0 1px 2px rgba(18,166,166,.3)",
             }}
           >
-            로그인
+            {submitting ? "로그인 중…" : "로그인"}
           </button>
 
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 16, fontSize: 11, color: C.muted3 }}>
@@ -135,7 +167,9 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
         </form>
 
         <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "#5c8a8a" }}>
-          데모 — 아무 값이나 입력 후 로그인하면 관제 화면으로 이동합니다.
+          {SUPABASE_ENABLED
+            ? "데모 계정: nurse1 / 1234  (또는 admin / 1234)"
+            : "데모 — 아무 값이나 입력 후 로그인하면 관제 화면으로 이동합니다."}
         </div>
       </div>
     </div>

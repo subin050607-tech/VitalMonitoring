@@ -33,7 +33,7 @@ export function VitalWatchApp() {
   return (
     <RangesProvider value={state.ranges}>
       <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: C.pageBg }}>
-        <TopNav screen={state.screen} goScreen={vw.goScreen} clock={fmtClock(state.now)} onLogout={vw.logout} />
+        <TopNav screen={state.screen} goScreen={vw.goScreen} clock={fmtClock(state.now)} onLogout={vw.logout} userName={state.user?.name} />
 
         {state.screen === "dashboard" && (
           <Dashboard

@@ -50,6 +50,13 @@ export interface Layers {
 }
 
 export type ScreenName = "dashboard" | "patients" | "detail" | "stats" | "alerts" | "settings";
+
+/** 로그인한 의료진 (m_uidmst). ack 기록자·표시명에 쓰인다. */
+export interface LoginUser {
+  uid: string;
+  name: string;
+  depCod: string;
+}
 export type Period = "24h" | "7d" | "30d";
 export type VitalKey = keyof Layers;
 

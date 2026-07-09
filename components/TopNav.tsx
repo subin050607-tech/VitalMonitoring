@@ -19,12 +19,16 @@ export function TopNav({
   goScreen,
   clock,
   onLogout,
+  userName,
 }: {
   screen: ScreenName;
   goScreen: (s: ScreenName) => void;
   clock: string;
   onLogout: () => void;
+  userName?: string;
 }) {
+  const name = userName || "이정민";
+  const initials = name.slice(0, 2);
   return (
     <div
       style={{
@@ -108,11 +112,11 @@ export function TopNav({
             color: "#eafeff",
           }}
         >
-          이정
+          {initials}
         </div>
         <div style={{ lineHeight: 1.15 }}>
           <div style={{ fontSize: 12.5, fontWeight: 600 }}>
-            이정민 <span style={{ color: "#7fb6b6", fontWeight: 500 }}>간호사 · RN</span>
+            {name} <span style={{ color: "#7fb6b6", fontWeight: 500 }}>간호사 · RN</span>
           </div>
           <div style={{ fontSize: 10.5, color: "#6ba0a0" }}>5·6병동 스테이션</div>
         </div>

@@ -16,6 +16,7 @@ import { fmtClock } from "@/lib/format";
 import type { AlertRecord } from "@/lib/alerts";
 import type {
   Layers,
+  LoginUser,
   Patient,
   Period,
   RangesConfig,
@@ -27,8 +28,12 @@ import type {
 } from "@/lib/types";
 import { DEFAULT_RANGES, patientStatus } from "@/lib/vitals";
 
+/** 시뮬 모드 기본 사용자 (실제 로그인 검증이 없으므로). */
+export const MOCK_USER: LoginUser = { uid: "nurse1", name: "이정민", depCod: "D1" };
+
 export interface State {
   authed: boolean;
+  user: LoginUser | null;
   patients: Patient[];
   ward: string;
   screen: ScreenName;
@@ -63,6 +68,7 @@ function initialState(): State {
   const firstDanger = patients.find((p) => p.ward === "5" && p.status === "danger");
   return {
     authed: false,
+    user: null,
     patients,
     ward: "5",
     screen: "dashboard",
@@ -101,7 +107,7 @@ export interface VitalWatch {
   liveAlerts?: AlertRecord[];
   /** 라이브 모드에서 선택 환자의 실측 시계열(상세 그래프용). 시뮬은 undefined → genSeries. */
   selectedSeries?: VitalSeries;
-  login: () => void;
+  login: (user?: LoginUser) => void;
   logout: () => void;
   ackPatient: (id: string) => void;
   dismissToast: (id: string) => void;
@@ -183,7 +189,9 @@ export function useVitalWatch(): VitalWatch {
     setState((s) => ({
       ...s,
       patients: s.patients.map((p) =>
-        p.id === id ? { ...p, acknowledged: true, ackBy: "이정민", ackAt: fmtClock(new Date()) } : p,
+        p.id === id
+          ? { ...p, acknowledged: true, ackBy: s.user?.name ?? MOCK_USER.name, ackAt: fmtClock(new Date()) }
+          : p,
       ),
       toasts: s.toasts.filter((t) => t.pid !== id),
     }));
@@ -206,9 +214,12 @@ export function useVitalWatch(): VitalWatch {
     [],
   );
 
-  const login = useCallback(() => setState((s) => ({ ...s, authed: true })), []);
+  const login = useCallback(
+    (user?: LoginUser) => setState((s) => ({ ...s, authed: true, user: user ?? MOCK_USER })),
+    [],
+  );
   const logout = useCallback(
-    () => setState((s) => ({ ...s, authed: false, screen: "dashboard" })),
+    () => setState((s) => ({ ...s, authed: false, user: null, screen: "dashboard" })),
     [],
   );
 

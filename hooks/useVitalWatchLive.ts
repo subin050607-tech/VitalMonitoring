@@ -23,15 +23,14 @@ import {
   subscribeToChanges,
 } from "@/lib/supabase/queries";
 import { toSeries } from "@/lib/supabase/map";
-import type { Patient, Period, RangesConfig, ScreenName, Toast, VitalKey, VitalSeries } from "@/lib/types";
+import type { LoginUser, Patient, Period, RangesConfig, ScreenName, Toast, VitalKey, VitalSeries } from "@/lib/types";
 import { DEFAULT_RANGES, vStatus, worstBp } from "@/lib/vitals";
-import type { State, VitalWatch } from "./useVitalWatch";
-
-const CURRENT_UID = "nurse1"; // 로그인 사용자 (데모)
+import { MOCK_USER, type State, type VitalWatch } from "./useVitalWatch";
 
 function initialState(): State {
   return {
     authed: false,
+    user: null,
     patients: [],
     ward: "5",
     screen: "dashboard",
@@ -147,19 +146,27 @@ export function useVitalWatchLive(): VitalWatch {
   }, [state.authed, scheduleRefresh]);
 
   // ── 액션 ──
-  const login = useCallback(() => setState((s) => ({ ...s, authed: true })), []);
-  const logout = useCallback(() => setState((s) => ({ ...s, authed: false, screen: "dashboard" })), []);
+  const login = useCallback(
+    (user?: LoginUser) => setState((s) => ({ ...s, authed: true, user: user ?? MOCK_USER })),
+    [],
+  );
+  const logout = useCallback(
+    () => setState((s) => ({ ...s, authed: false, user: null, screen: "dashboard" })),
+    [],
+  );
 
   const ackPatient = useCallback((id: string) => {
-    const patient = stateRef.current.patients.find((p) => p.id === id);
+    const s0 = stateRef.current;
+    const patient = s0.patients.find((p) => p.id === id);
     if (!patient) return;
-    // 서버에 확인 기록 (측정시점 기준). 실패해도 UI 는 낙관적으로 처리 후 재조회로 정정.
-    ackMeasurement(id, patient.measured, CURRENT_UID).catch((e) =>
+    const user = s0.user ?? MOCK_USER;
+    // 서버에 확인 기록 (측정시점 + 로그인 사용자). 실패해도 UI 는 낙관적으로 처리 후 재조회로 정정.
+    ackMeasurement(id, patient.measured, user.uid).catch((e) =>
       console.error("[VitalWatch live] 확인 저장 실패:", e),
     );
     setState((s) => {
       const patients = s.patients.map((p) =>
-        p.id === id ? { ...p, acknowledged: true, ackBy: "이정민", ackAt: fmtClock(new Date()) } : p,
+        p.id === id ? { ...p, acknowledged: true, ackBy: user.name, ackAt: fmtClock(new Date()) } : p,
       );
       return { ...s, patients, toasts: buildToasts(patients, s.ranges, dismissedRef.current) };
     });

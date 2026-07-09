@@ -1,10 +1,46 @@
 /** Supabase 뷰 조회 + Realtime 구독. supabase 가 null(비활성)이면 빈 결과. */
 
 import type { AlertRecord } from "../alerts";
-import type { Patient, RangesConfig } from "../types";
+import { sha256hex } from "../hash";
+import type { LoginUser, Patient, RangesConfig } from "../types";
 import { supabase } from "./client";
 import { alarmToRecord, recordEpoch, toPatient } from "./map";
 import type { AlarmListRow, PatientSearchRow, VitalHistoryRow } from "./rows";
+
+interface UidRow {
+  UidCod: string;
+  UidNam: string;
+  UidDepCod: string;
+}
+
+/** yyyyMMdd (m_uidmst 유효기간 비교용). */
+function todayYmd(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+}
+
+/**
+ * m_uidmst 로 로그인 검증. 비밀번호는 SHA256 hex 로 해싱해 비교하고,
+ * 유효기간(UidStrDte ≤ 오늘 ≤ UidEndDte) 안이어야 통과. 실패면 null.
+ */
+export async function validateLogin(userId: string, password: string): Promise<LoginUser | null> {
+  if (!supabase) return null;
+  const hash = await sha256hex(password);
+  const today = todayYmd();
+  const { data, error } = await supabase
+    .from("m_uidmst")
+    .select("UidCod,UidNam,UidDepCod")
+    .eq("UidCod", userId)
+    .eq("UidPwd", hash)
+    .lte("UidStrDte", today)
+    .gte("UidEndDte", today)
+    .limit(1);
+  if (error) throw error;
+  const row = (data ?? [])[0] as UidRow | undefined;
+  if (!row) return null;
+  return { uid: row.UidCod, name: row.UidNam, depCod: row.UidDepCod };
+}
 
 interface AckRow {
   cht_num: number;
