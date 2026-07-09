@@ -155,6 +155,21 @@ create table if not exists p_vtlack (
   primary key ("cht_num", "measured_ms")
 );
 
+-- 관제 스테이션 공통 설정 [웹 전용] — 위험 기준치·알림음·볼륨 (전역 1행 'default').
+-- 모든 관제 PC 가 공유. 설정 화면에서 바꾸면 여기에 저장/불러온다.
+create table if not exists m_setmst (
+  "SetKey"  text primary key,
+  "Ranges"  jsonb   not null,
+  "SoundOn" boolean not null default true,
+  "Volume"  integer not null default 70,
+  "UpdDtm"  timestamptz default now()
+);
+insert into m_setmst ("SetKey","Ranges","SoundOn","Volume")
+values ('default',
+  '{"temp":{"normal":[36.0,37.7],"caution":[35.3,38.4]},"sbp":{"normal":[100,139],"caution":[90,159]},"dbp":{"normal":[60,89],"caution":[55,99]},"hr":{"normal":[60,99],"caution":[50,119]},"rr":{"normal":[12,20],"caution":[9,24]},"spo2":{"normal":[95,100],"caution":[92,100]}}'::jsonb,
+  true, 70)
+on conflict ("SetKey") do nothing;
+
 -- 조회 성능용 인덱스
 create index if not exists ix_vtlinf_cht_dtf on p_vtlinf ("VtlChtNum", "VtlUpdDtf");
 create index if not exists ix_alminf_cht_dtf on p_alminf ("AlmChtNum", "AlmCreateDtf");

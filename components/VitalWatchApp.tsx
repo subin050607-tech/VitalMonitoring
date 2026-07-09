@@ -76,7 +76,16 @@ export function VitalWatchApp() {
           <AlertHistory ward={state.ward} setWard={vw.setWard} records={vw.liveAlerts} />
         )}
 
-        {state.screen === "settings" && <Settings ranges={state.ranges} setRanges={vw.setRanges} />}
+        {state.screen === "settings" && (
+          <Settings
+            ranges={state.ranges}
+            setRanges={vw.setRanges}
+            soundOn={state.soundOn}
+            volume={state.volume}
+            setSound={vw.setSound}
+            setVolume={vw.setVolume}
+          />
+        )}
 
         <ToastStack toasts={state.toasts} onDismiss={vw.dismissToast} onAck={vw.ackPatient} />
       </div>

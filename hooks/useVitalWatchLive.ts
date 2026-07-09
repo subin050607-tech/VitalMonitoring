@@ -18,8 +18,10 @@ import { fmtClock } from "@/lib/format";
 import {
   ackMeasurement,
   fetchAlerts,
+  fetchSettings,
   fetchVitalHistory,
   fetchWardPatients,
+  saveSettings,
   subscribeToChanges,
 } from "@/lib/supabase/queries";
 import { toSeries } from "@/lib/supabase/map";
@@ -50,6 +52,8 @@ export interface State {
   period: Period;
   layers: Layers;
   ranges: RangesConfig;
+  soundOn: boolean;
+  volume: number;
   toasts: Toast[];
   now: Date;
   alertToday: number;
@@ -70,6 +74,8 @@ export interface VitalWatch {
   setPeriod: (period: Period) => void;
   toggleLayer: (key: VitalKey) => void;
   setRanges: (ranges: RangesConfig) => void;
+  setSound: (on: boolean) => void;
+  setVolume: (volume: number) => void;
 }
 
 function initialState(): State {
@@ -84,6 +90,8 @@ function initialState(): State {
     period: "24h",
     layers: { temp: true, bp: true, hr: true, rr: true, spo2: true },
     ranges: DEFAULT_RANGES,
+    soundOn: true,
+    volume: 70,
     toasts: [],
     now: new Date(),
     alertToday: 0,
@@ -130,6 +138,20 @@ export function useVitalWatchLive(): VitalWatch {
   const stateRef = useRef(state);
   stateRef.current = state;
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** 현재 설정(+override)을 m_setmst 에 저장. 모든 관제 PC 가 공유. */
+  const persistSettings = useCallback(
+    (override: Partial<{ ranges: RangesConfig; soundOn: boolean; volume: number }>) => {
+      const s = stateRef.current;
+      saveSettings({
+        ranges: override.ranges ?? s.ranges,
+        soundOn: override.soundOn ?? s.soundOn,
+        volume: override.volume ?? s.volume,
+      }).catch((e) => console.error("[VitalWatch live] 설정 저장 실패:", e));
+    },
+    [],
+  );
 
   const refresh = useCallback(async () => {
     const s = stateRef.current;
@@ -157,6 +179,20 @@ export function useVitalWatchLive(): VitalWatch {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
     refreshTimer.current = setTimeout(refresh, 400);
   }, [refresh]);
+
+  // 로그인 직후 저장된 공통 설정(기준치·알림음·볼륨) 불러오기
+  useEffect(() => {
+    if (!state.authed) return;
+    let alive = true;
+    fetchSettings()
+      .then((s) => {
+        if (alive && s) setState((prev) => ({ ...prev, ranges: s.ranges, soundOn: s.soundOn, volume: s.volume }));
+      })
+      .catch((e) => console.error("[VitalWatch live] 설정 불러오기 실패:", e));
+    return () => {
+      alive = false;
+    };
+  }, [state.authed]);
 
   // 인증/병동/기준치 변경 시 재조회
   useEffect(() => {
@@ -234,7 +270,31 @@ export function useVitalWatchLive(): VitalWatch {
     (key: VitalKey) => setState((s) => ({ ...s, layers: { ...s.layers, [key]: !s.layers[key] } })),
     [],
   );
-  const setRanges = useCallback((ranges: RangesConfig) => setState((s) => ({ ...s, ranges })), []);
+  const setRanges = useCallback(
+    (ranges: RangesConfig) => {
+      setState((s) => ({ ...s, ranges })); // ranges 변경 → 재조회 효과가 상태 재판정
+      persistSettings({ ranges });
+    },
+    [persistSettings],
+  );
+
+  const setSound = useCallback(
+    (on: boolean) => {
+      setState((s) => ({ ...s, soundOn: on }));
+      persistSettings({ soundOn: on });
+    },
+    [persistSettings],
+  );
+
+  const setVolume = useCallback(
+    (volume: number) => {
+      setState((s) => ({ ...s, volume }));
+      // 슬라이더는 이벤트가 많으니 저장은 디바운스
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => persistSettings({ volume }), 500);
+    },
+    [persistSettings],
+  );
 
   return {
     state,
@@ -250,5 +310,7 @@ export function useVitalWatchLive(): VitalWatch {
     setPeriod,
     toggleLayer,
     setRanges,
+    setSound,
+    setVolume,
   };
 }

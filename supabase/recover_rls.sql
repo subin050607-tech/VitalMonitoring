@@ -29,7 +29,7 @@ declare t text;
 begin
   foreach t in array array[
     'm_uidmst','m_depmst','m_wadmst','m_kcdmst','m_rommst','m_bedmst',
-    'p_patinf','p_cominf','p_cowinf','p_vtlinf','p_alminf','p_vtlack'
+    'p_patinf','p_cominf','p_cowinf','p_vtlinf','p_alminf','p_vtlack','m_setmst'
   ]
   loop
     execute format('alter table %I enable row level security', t);
@@ -47,6 +47,12 @@ create policy ins_alarms on p_alminf for insert to anon, authenticated with chec
 
 drop policy if exists ins_acks on p_vtlack;
 create policy ins_acks on p_vtlack for insert to anon, authenticated with check (true);
+
+-- 설정은 웹에서 저장(insert/update) 하므로 두 정책 모두 허용
+drop policy if exists ins_set on m_setmst;
+create policy ins_set on m_setmst for insert to anon, authenticated with check (true);
+drop policy if exists upd_set on m_setmst;
+create policy upd_set on m_setmst for update to anon, authenticated using (true) with check (true);
 
 -- (마스터·환자·입원·병상 테이블은 INSERT/UPDATE/DELETE 정책이 없어 anon 쓰기 차단.
 --  시드/관리 데이터는 SQL Editor(postgres 역할)로 넣으면 RLS 를 우회하므로 문제 없음.)

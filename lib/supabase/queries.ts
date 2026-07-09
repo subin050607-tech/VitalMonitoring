@@ -98,6 +98,37 @@ export async function fetchWardPatients(ward: string, ranges: RangesConfig): Pro
   return result;
 }
 
+/** 관제 스테이션 공통 설정 (전역 1행). */
+export interface StationSettings {
+  ranges: RangesConfig;
+  soundOn: boolean;
+  volume: number;
+}
+
+/** 저장된 공통 설정을 읽는다. 없으면 null → 호출측이 기본값 사용. */
+export async function fetchSettings(): Promise<StationSettings | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("m_setmst")
+    .select("Ranges,SoundOn,Volume")
+    .eq("SetKey", "default")
+    .limit(1);
+  if (error) throw error;
+  const row = (data ?? [])[0] as { Ranges: RangesConfig; SoundOn: boolean; Volume: number } | undefined;
+  if (!row) return null;
+  return { ranges: row.Ranges, soundOn: row.SoundOn, volume: row.Volume };
+}
+
+/** 공통 설정을 저장(upsert). 모든 관제 PC 가 공유한다. */
+export async function saveSettings(s: StationSettings): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("m_setmst").upsert(
+    { SetKey: "default", Ranges: s.ranges, SoundOn: s.soundOn, Volume: s.volume, UpdDtm: new Date().toISOString() },
+    { onConflict: "SetKey" },
+  );
+  if (error) throw error;
+}
+
 /** 특정 측정시점을 확인 처리 (측정당 1건, 중복은 무시). */
 export async function ackMeasurement(chartNo: string, measuredMs: number, uid: string): Promise<void> {
   if (!supabase) return;

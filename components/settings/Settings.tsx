@@ -38,11 +38,23 @@ function AccountRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function Settings({ ranges, setRanges }: { ranges: RangesConfig; setRanges: (r: RangesConfig) => void }) {
+export function Settings({
+  ranges,
+  setRanges,
+  soundOn,
+  volume,
+  setSound,
+  setVolume,
+}: {
+  ranges: RangesConfig;
+  setRanges: (r: RangesConfig) => void;
+  soundOn: boolean;
+  volume: number;
+  setSound: (on: boolean) => void;
+  setVolume: (v: number) => void;
+}) {
   const [draft, setDraft] = useState<RangesConfig>(ranges);
   const [saved, setSaved] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
-  const [volume, setVolume] = useState(70);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(ranges);
 
@@ -162,7 +174,7 @@ export function Settings({ ranges, setRanges }: { ranges: RangesConfig; setRange
                   <div style={{ fontSize: 11, color: C.muted3 }}>위험 알림 발생 시 소리 재생</div>
                 </div>
                 <PressButton
-                  onClick={() => setSoundOn((v) => !v)}
+                  onClick={() => setSound(!soundOn)}
                   ariaPressed={soundOn}
                   ariaLabel="청각 경고음 토글"
                   style={{ width: 44, height: 24, borderRadius: 999, background: soundOn ? C.teal : "#cfd8dc", position: "relative", transition: "background .15s", flex: "none" }}
