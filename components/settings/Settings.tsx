@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { useState } from "react";
 
+import { playAlert } from "@/lib/sound";
 import { C, FONT } from "@/lib/theme";
 import type { RangeKey, RangesConfig } from "@/lib/types";
 import { DEFAULT_RANGES } from "@/lib/vitals";
@@ -198,6 +199,15 @@ export function Settings({
                   aria-label="알림음 볼륨"
                   style={{ width: "100%", accentColor: C.teal, opacity: soundOn ? 1 : 0.4 }}
                 />
+              </div>
+              <div style={{ paddingTop: 10 }}>
+                <PressButton
+                  onClick={() => playAlert(volume)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", fontSize: 12.5, fontWeight: 600, color: C.tealDeep }}
+                >
+                  🔊 소리 테스트
+                </PressButton>
+                <span style={{ fontSize: 11, color: C.muted3, marginLeft: 10 }}>현재 볼륨({volume}%)으로 알림음을 재생합니다.</span>
               </div>
             </div>
           </div>

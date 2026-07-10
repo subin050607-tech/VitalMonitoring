@@ -98,11 +98,13 @@ export async function fetchWardPatients(ward: string, ranges: RangesConfig): Pro
   return result;
 }
 
-/** 관제 스테이션 공통 설정 (전역 1행). */
+/**
+ * 관제 스테이션 공통 설정 (전역 1행). 위험 기준치·알림음은 모든 PC 공유.
+ * (볼륨은 PC 마다 다르게 두려고 DB 가 아니라 localStorage 에 저장 → 여기 없음.)
+ */
 export interface StationSettings {
   ranges: RangesConfig;
   soundOn: boolean;
-  volume: number;
 }
 
 /** 저장된 공통 설정을 읽는다. 없으면 null → 호출측이 기본값 사용. */
@@ -110,20 +112,20 @@ export async function fetchSettings(): Promise<StationSettings | null> {
   if (!supabase) return null;
   const { data, error } = await supabase
     .from("m_setmst")
-    .select("Ranges,SoundOn,Volume")
+    .select("Ranges,SoundOn")
     .eq("SetKey", "default")
     .limit(1);
   if (error) throw error;
-  const row = (data ?? [])[0] as { Ranges: RangesConfig; SoundOn: boolean; Volume: number } | undefined;
+  const row = (data ?? [])[0] as { Ranges: RangesConfig; SoundOn: boolean } | undefined;
   if (!row) return null;
-  return { ranges: row.Ranges, soundOn: row.SoundOn, volume: row.Volume };
+  return { ranges: row.Ranges, soundOn: row.SoundOn };
 }
 
-/** 공통 설정을 저장(upsert). 모든 관제 PC 가 공유한다. */
+/** 공통 설정을 저장(upsert). 모든 관제 PC 가 공유한다. (볼륨 제외 — localStorage) */
 export async function saveSettings(s: StationSettings): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("m_setmst").upsert(
-    { SetKey: "default", Ranges: s.ranges, SoundOn: s.soundOn, Volume: s.volume, UpdDtm: new Date().toISOString() },
+    { SetKey: "default", Ranges: s.ranges, SoundOn: s.soundOn, UpdDtm: new Date().toISOString() },
     { onConflict: "SetKey" },
   );
   if (error) throw error;

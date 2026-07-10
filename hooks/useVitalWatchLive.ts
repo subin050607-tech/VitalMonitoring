@@ -25,6 +25,7 @@ import {
   subscribeToChanges,
 } from "@/lib/supabase/queries";
 import { toSeries } from "@/lib/supabase/map";
+import { playAlert } from "@/lib/sound";
 import type {
   Layers,
   LoginUser,
@@ -40,6 +41,9 @@ import { DEFAULT_RANGES, vStatus, worstBp } from "@/lib/vitals";
 
 /** 로그인 사용자가 없을 때의 안전 기본값 (정상 흐름에선 로그인 시 실제 사용자로 채워짐). */
 const DEFAULT_USER: LoginUser = { uid: "nurse1", name: "이정민", depCod: "D1" };
+
+/** 볼륨은 PC 전용 → localStorage 키. */
+const VOLUME_KEY = "vitalwatch.volume";
 
 export interface State {
   authed: boolean;
@@ -138,16 +142,14 @@ export function useVitalWatchLive(): VitalWatch {
   const stateRef = useRef(state);
   stateRef.current = state;
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** 현재 설정(+override)을 m_setmst 에 저장. 모든 관제 PC 가 공유. */
+  /** 위험 기준치·알림음을 m_setmst 에 저장(공유). 볼륨은 여기 없음(localStorage). */
   const persistSettings = useCallback(
-    (override: Partial<{ ranges: RangesConfig; soundOn: boolean; volume: number }>) => {
+    (override: Partial<{ ranges: RangesConfig; soundOn: boolean }>) => {
       const s = stateRef.current;
       saveSettings({
         ranges: override.ranges ?? s.ranges,
         soundOn: override.soundOn ?? s.soundOn,
-        volume: override.volume ?? s.volume,
       }).catch((e) => console.error("[VitalWatch live] 설정 저장 실패:", e));
     },
     [],
@@ -180,19 +182,38 @@ export function useVitalWatchLive(): VitalWatch {
     refreshTimer.current = setTimeout(refresh, 400);
   }, [refresh]);
 
-  // 로그인 직후 저장된 공통 설정(기준치·알림음·볼륨) 불러오기
+  // 볼륨은 이 PC 전용 → localStorage 에서 복원 (마운트 1회)
+  useEffect(() => {
+    const raw = localStorage.getItem(VOLUME_KEY);
+    if (raw !== null) {
+      const v = Number(raw);
+      if (Number.isFinite(v)) setState((prev) => ({ ...prev, volume: Math.min(100, Math.max(0, v)) }));
+    }
+  }, []);
+
+  // 로그인 직후 저장된 공통 설정(기준치·알림음) 불러오기
   useEffect(() => {
     if (!state.authed) return;
     let alive = true;
     fetchSettings()
       .then((s) => {
-        if (alive && s) setState((prev) => ({ ...prev, ranges: s.ranges, soundOn: s.soundOn, volume: s.volume }));
+        if (alive && s) setState((prev) => ({ ...prev, ranges: s.ranges, soundOn: s.soundOn }));
       })
       .catch((e) => console.error("[VitalWatch live] 설정 불러오기 실패:", e));
     return () => {
       alive = false;
     };
   }, [state.authed]);
+
+  // 새 위험 토스트가 뜨면 알림음 재생 (soundOn 일 때, 볼륨 반영)
+  const prevToastIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const cur = new Set(state.toasts.map((t) => t.id));
+    let hasNew = false;
+    for (const id of cur) if (!prevToastIds.current.has(id)) hasNew = true;
+    prevToastIds.current = cur;
+    if (hasNew && stateRef.current.soundOn) playAlert(stateRef.current.volume);
+  }, [state.toasts]);
 
   // 인증/병동/기준치 변경 시 재조회
   useEffect(() => {
@@ -286,15 +307,14 @@ export function useVitalWatchLive(): VitalWatch {
     [persistSettings],
   );
 
-  const setVolume = useCallback(
-    (volume: number) => {
-      setState((s) => ({ ...s, volume }));
-      // 슬라이더는 이벤트가 많으니 저장은 디바운스
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => persistSettings({ volume }), 500);
-    },
-    [persistSettings],
-  );
+  const setVolume = useCallback((volume: number) => {
+    setState((s) => ({ ...s, volume }));
+    try {
+      localStorage.setItem(VOLUME_KEY, String(volume)); // 이 PC 에만 저장
+    } catch {
+      /* noop */
+    }
+  }, []);
 
   return {
     state,
