@@ -249,7 +249,13 @@ export function useVitalWatchLive(): VitalWatch {
 
   // ── 액션 ──
   const login = useCallback(
-    (user?: LoginUser) => setState((s) => ({ ...s, authed: true, user: user ?? DEFAULT_USER })),
+    (user?: LoginUser) =>
+      setState((s) => {
+        const u = user ?? DEFAULT_USER;
+        // 특정 병동 전담 계정이면 그 병동으로 대시보드를 연다. 스테이션('5·6')은 기본 유지.
+        const ward = u.wadCod === "5" || u.wadCod === "6" ? u.wadCod : s.ward;
+        return { ...s, authed: true, user: u, ward };
+      }),
     [],
   );
   const logout = useCallback(
