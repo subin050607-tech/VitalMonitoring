@@ -37,6 +37,7 @@ create table if not exists m_uidmst (
   "UidCod"    text primary key,
   "UidNam"    text,
   "UidDepCod" text,               -- 소속 부서 → m_depmst.DepCod
+  "UidWadCod" text,               -- 담당 병동(로그인 시 선택 병동과 대조). 예: '5·6','5','6'
   "UidPwd"    text,               -- SHA256 소문자 hex (솔트 없음)
   "UidStrDte" text,               -- yyyyMMdd
   "UidEndDte" text                -- yyyyMMdd

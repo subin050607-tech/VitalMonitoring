@@ -40,7 +40,7 @@ import type {
 import { DEFAULT_RANGES, vStatus, worstBp } from "@/lib/vitals";
 
 /** 로그인 사용자가 없을 때의 안전 기본값 (정상 흐름에선 로그인 시 실제 사용자로 채워짐). */
-const DEFAULT_USER: LoginUser = { uid: "nurse1", name: "이정민", depCod: "D1" };
+const DEFAULT_USER: LoginUser = { uid: "nurse1", name: "이정민", depCod: "D1", wadCod: "5·6" };
 
 /** 볼륨은 PC 전용 → localStorage 키. */
 const VOLUME_KEY = "vitalwatch.volume";

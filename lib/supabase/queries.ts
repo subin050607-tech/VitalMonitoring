@@ -11,6 +11,7 @@ interface UidRow {
   UidCod: string;
   UidNam: string;
   UidDepCod: string;
+  UidWadCod: string | null;
 }
 
 /** yyyyMMdd (m_uidmst 유효기간 비교용). */
@@ -30,7 +31,7 @@ export async function validateLogin(userId: string, password: string): Promise<L
   const today = todayYmd();
   const { data, error } = await supabase
     .from("m_uidmst")
-    .select("UidCod,UidNam,UidDepCod")
+    .select("UidCod,UidNam,UidDepCod,UidWadCod")
     .eq("UidCod", userId)
     .eq("UidPwd", hash)
     .lte("UidStrDte", today)
@@ -39,7 +40,7 @@ export async function validateLogin(userId: string, password: string): Promise<L
   if (error) throw error;
   const row = (data ?? [])[0] as UidRow | undefined;
   if (!row) return null;
-  return { uid: row.UidCod, name: row.UidNam, depCod: row.UidDepCod };
+  return { uid: row.UidCod, name: row.UidNam, depCod: row.UidDepCod, wadCod: row.UidWadCod ?? "" };
 }
 
 interface AckRow {

@@ -18,10 +18,10 @@ insert into m_depmst ("DepCod","DepName","DepStrDte","DepEndDte") values
   ('D1','내과','20200101','99991231'),
   ('D2','외과','20200101','99991231');
 
--- 사용자 (pw 1234 = SHA256 소문자 hex)
-insert into m_uidmst ("UidCod","UidNam","UidDepCod","UidPwd","UidStrDte","UidEndDte") values
-  ('admin','관리자','D1','03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4','20200101','99991231'),
-  ('nurse1','이정민','D1','03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4','20200101','99991231');
+-- 사용자 (SHA256 소문자 hex). admin/admin, nurse1/1234. 담당 병동 '5·6'.
+insert into m_uidmst ("UidCod","UidNam","UidDepCod","UidWadCod","UidPwd","UidStrDte","UidEndDte") values
+  ('admin','관리자','D1','5·6','8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918','20200101','99991231'),
+  ('nurse1','이정민','D1','5·6','03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4','20200101','99991231');
 
 -- 병동
 insert into m_wadmst ("WadCod","WadNam","WadStrDte","WadEndDte") values

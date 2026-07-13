@@ -56,6 +56,7 @@ export interface LoginUser {
   uid: string;
   name: string;
   depCod: string;
+  wadCod: string; // 담당 병동 코드 (로그인 시 선택 병동과 대조)
 }
 export type Period = "24h" | "7d" | "30d";
 export type VitalKey = keyof Layers;

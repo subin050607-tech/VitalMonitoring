@@ -50,10 +50,13 @@ export function LoginScreen({ onLogin }: { onLogin: (user?: LoginUser) => void }
     setSubmitting(true);
     try {
       const user = await validateLogin(staffId.trim(), password);
-      if (user) {
-        onLogin(user);
-      } else {
+      if (!user) {
         setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      } else if (user.wadCod && user.wadCod !== ward) {
+        // 자격은 맞지만 선택한 병동이 계정의 담당 병동과 다름
+        setError("선택한 병동이 계정 정보와 다릅니다.");
+      } else {
+        onLogin(user);
       }
     } catch {
       setError("서버 연결에 실패했습니다. 잠시 후 다시 시도하세요.");
@@ -164,10 +167,6 @@ export function LoginScreen({ onLogin }: { onLogin: (user?: LoginUser) => void }
             인증된 의료진만 접근 · 통신 구간 암호화(HTTPS)
           </div>
         </form>
-
-        <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "#5c8a8a" }}>
-          데모 계정: nurse1 / 1234  (또는 admin / 1234)
-        </div>
       </div>
     </div>
   );
