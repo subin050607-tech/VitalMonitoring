@@ -298,6 +298,81 @@ select
 from v_patient_search ps
 join last_alm a on a."AlmChtNum"::text = ps.pat_cht_num;
 
+-- ──────────────────────────── 외래키(관계) ────────────────────────────
+-- 개체 간 1:N 관계를 FK 제약으로 못박는다 → Supabase ERD 에 관계선 표시 +
+-- 참조 무결성 보장. 임상 자식(환자·입원 하위)은 부모 삭제 시 함께 정리(cascade),
+-- 마스터 코드 참조는 사용 중이면 삭제 차단(restrict).
+-- (재실행 안전: 이미 있으면 건너뜀)
+-- 주의: m_uidmst.UidWadCod 는 '5·6' 같은 스테이션 라벨(복수 병동)이라 단일 FK 로
+--       표현 불가 → 일부러 제약을 걸지 않는다.
+do $$
+begin
+  -- 임상 자식 → cascade
+  if not exists (select 1 from pg_constraint where conname='fk_cominf_patient') then
+    alter table p_cominf add constraint fk_cominf_patient
+      foreign key ("ComChtNum") references p_patinf ("PatChtnum") on delete cascade;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_vtlinf_patient') then
+    alter table p_vtlinf add constraint fk_vtlinf_patient
+      foreign key ("VtlChtNum") references p_patinf ("PatChtnum") on delete cascade;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_alminf_patient') then
+    alter table p_alminf add constraint fk_alminf_patient
+      foreign key ("AlmChtNum") references p_patinf ("PatChtnum") on delete cascade;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_vtlack_patient') then
+    alter table p_vtlack add constraint fk_vtlack_patient
+      foreign key (cht_num) references p_patinf ("PatChtnum") on delete cascade;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_cowinf_admission') then
+    alter table p_cowinf add constraint fk_cowinf_admission
+      foreign key ("CowComNum") references p_cominf ("Comnum") on delete cascade;
+  end if;
+  -- 마스터 코드 참조 → restrict
+  if not exists (select 1 from pg_constraint where conname='fk_uidmst_dept') then
+    alter table m_uidmst add constraint fk_uidmst_dept
+      foreign key ("UidDepCod") references m_depmst ("DepCod") on delete restrict;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_rommst_ward') then
+    alter table m_rommst add constraint fk_rommst_ward
+      foreign key ("RomWadCod") references m_wadmst ("WadCod") on delete restrict;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_bedmst_ward') then
+    alter table m_bedmst add constraint fk_bedmst_ward
+      foreign key ("BedWadCod") references m_wadmst ("WadCod") on delete restrict;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_bedmst_room') then
+    alter table m_bedmst add constraint fk_bedmst_room
+      foreign key ("BedRomCod") references m_rommst ("RomCod") on delete restrict;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_cominf_doctor') then
+    alter table p_cominf add constraint fk_cominf_doctor
+      foreign key ("ComUidCod") references m_uidmst ("UidCod") on delete restrict;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_cominf_diagnosis') then
+    alter table p_cominf add constraint fk_cominf_diagnosis
+      foreign key ("ComKcdCod") references m_kcdmst ("KcdCod") on delete restrict;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_cowinf_ward') then
+    alter table p_cowinf add constraint fk_cowinf_ward
+      foreign key ("CowWadCod") references m_wadmst ("WadCod") on delete restrict;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_cowinf_room') then
+    alter table p_cowinf add constraint fk_cowinf_room
+      foreign key ("CowRomCod") references m_rommst ("RomCod") on delete restrict;
+  end if;
+  if not exists (select 1 from pg_constraint where conname='fk_cowinf_bed') then
+    alter table p_cowinf add constraint fk_cowinf_bed
+      foreign key ("CowBedCod") references m_bedmst ("BedCod") on delete restrict;
+  end if;
+end $$;
+
+-- FK 컬럼 조회·삭제 성능용 인덱스 (Postgres 는 FK 컬럼을 자동 인덱싱하지 않음)
+create index if not exists ix_vtlinf_chtnum on p_vtlinf ("VtlChtNum");
+create index if not exists ix_alminf_chtnum on p_alminf ("AlmChtNum");
+create index if not exists ix_cominf_chtnum on p_cominf ("ComChtNum");
+create index if not exists ix_cowinf_comnum on p_cowinf ("CowComNum");
+
 -- ──────────────────────────────── 권한(grant) ──────────────────────────────
 -- 예전 동작 재현: publishable/anon 키로 직접 접근. (보안 경고: 위 헤더 참고)
 grant usage on schema public to anon, authenticated;
