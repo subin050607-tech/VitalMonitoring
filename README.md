@@ -40,4 +40,13 @@ app/           # 레이아웃 · 폰트 · 진입 페이지(마운트 게이트)
 components/     # 화면별 컴포넌트 (dashboard/ detail/ stats/ patients/ alerts/ settings/)
 hooks/         # useVitalWatchLive — 상태 + Supabase 조회/Realtime
 lib/           # 도메인 로직 (vitals 기준치 · patients · series · alerts · theme)
+supabase/      # 스키마·시드·RLS (recover_schema.sql = 테이블·뷰·FK 정의 SoT)
+docs/설계자료/  # 이 구현의 근거가 된 기획·설계 문서
 ```
+
+## 설계 자료 (구현 근거)
+
+이 프로젝트는 요구사항서·상세설계서·운영 시나리오 등 사전 설계 문서를 기반으로 구현했습니다.
+구현 의도나 배경이 궁금하면 [`docs/설계자료/`](docs/설계자료/)를 참고하세요 —
+과제제안서 · 요구사항서 · 수행계획서 · 상세설계서 · 운영 시나리오 · 발표자료가 모여 있습니다.
+요구사항(FR-01~04)·데이터 설계(개체·관계·ERD)는 각각 위 화면 표와 `supabase/recover_schema.sql`에 대응됩니다.
